@@ -9,3 +9,6 @@ mysqlclient
 mysql-connector-python
 python-dotenv
 django-environ
+pycodestyle
+pylint
+drf-nested-routers
