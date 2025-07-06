@@ -3,6 +3,7 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.text import slugify
+from django.core.exceptions import ValidationError
 
 
 User = get_user_model()
@@ -58,7 +59,7 @@ class Booking(models.Model):
     number_of_guests = models.PositiveIntegerField(
         validators=[MinValueValidator(1)])
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
-    status = models.CharField(max_length=255, choices=BookingStatus.choices)
+    status = models.CharField(max_length=255, choices=BookingStatus.choices, default='PENDING')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -75,6 +76,28 @@ class Booking(models.Model):
 
     def __str__(self):
         return f"Booking for {self.listing.name} by {self.guest.username}"
+    
+    # Custom clean method for validation
+    def clean(self):
+        """
+        Add model-level validation that is independent of the serializer.
+        This ensures data integrity even when creating objects outside of the API (e.g., in the Admin panel)
+        """
+        super().clean()
+        if self.start_date and self.end_date and self.end_date <= self.start_date:
+            raise ValidationError("End date must be after the start date.")
+    
+    def save(self, *args, **kwargs):
+        """
+        Overiding save to calculate total_price automatically.
+        """
+        if not self.total_price: # Calculate only if not already set
+            duration = (self.end_date - self.start_date).days
+            self.total_price = self.listing.price_per_night * duration
+
+        # Ensure model validation is called before saving
+        self.full_clean()   
+        super().save(*args, **kwargs)
 
 
 class Review(models.Model):
@@ -99,3 +122,19 @@ class Review(models.Model):
 
     def __str__(self):
         return f"Review for {self.listing.name} by {self.author.username}"
+
+class Payment(models.Model):
+    """
+    Model to store payment-related information
+    """
+    class PaymentStatus(models.TextChoices):
+        PENDING = 'PENDING', 'pending'
+        COMPLETED = 'COMPLETED', 'completed'
+        CANCELLED = 'CANCELLED', 'cancelled'
+
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    booking_reference = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name="payment")
+    payment_status = models.CharField(max_length=255, choices=PaymentStatus.choices)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    transaction_id = models.UUIDField(default=uuid4, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)

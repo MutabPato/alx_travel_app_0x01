@@ -16,21 +16,25 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Initializing environment variables
-env = environ.Env()
-environ.Env.read_env(BASE_DIR / '.env')
+# Initialize environment variables
+env = environ.Env(
+    # Set default values and casting for critical variables
+    DEBUG=(bool, False) # Default DEBUG to False for safety
+)
+environ.Env.read_env(os.path.join(BASE_DIR / '.env'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-!zizmws!pegy@)so)o$idui_*z7hkmm7j35f27_g-afkq8wdta'
+SECRET_KEY = env('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env('DEBUG') # Will be cast to boolean
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1', 'localhost'])
 
+CHAPA_SECRET_KEY = env('CHAPA_SECRET_KEY')
 
 # Application definition
 
@@ -47,10 +51,18 @@ INSTALLED_APPS = [
     'listings',
 ]
 
-DEFAULT_AUTHENTICATION_CLASSES = [
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
     'rest_framework.authentication.BasicAuthentication',
     'rest_framework.authentication.SessionAuthentication'
-]
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        # Set a sensible default like ISAuthenticated
+        'rest_framework.permissions.IsAuthenticated',
+    ]
+
+}
+
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -63,6 +75,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+# Be specific in production instead of allowing all origins
 CORS_ORIGIN_ALLOW_ALL = True
 
 ROOT_URLCONF = 'alx_travel_app.urls'
@@ -101,6 +114,9 @@ DATABASES = {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
         }
     }
+
+    # Use env.db() for automatic parsing of DATABASE_URL
+    # 'default': env.db('DATABASE_URL', default=f'mysql://user:pass@host:port/dbname')
 }
 
 

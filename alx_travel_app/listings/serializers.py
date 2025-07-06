@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from .models import Listing, Booking, Review
+from .models import Listing, Booking, Review, Payment
 
 
 User = get_user_model()
@@ -137,4 +137,14 @@ class BookingSerializer(serializers.ModelSerializer):
 
         validated_data['guest'] = self.context['request'].user
 
-        return super.create(validated_data)
+        return super().create(validated_data)
+    
+
+class PaymentSerializer(serializers.ModelSerializer):
+    """
+    Payment model Serializer
+    """
+    class Meta:
+        model = Payment
+        fields = ['id', 'booking_reference', 'payment_status',
+                  'amount', 'transaction_id', 'created_at']
